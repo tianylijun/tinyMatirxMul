@@ -19,9 +19,11 @@ void tcopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t M, uint32_t stride,
 
 	uint32_t *pSrcStart, *pDstStart;
 
-	//printf("M: %d, k: %d\n", M, K);
-	//printf("KDiv4: %d, KHas2: %d KHas1: %d\n", KDiv4, KHas2, KHas1);
-	//printf("MDiv4: %d, MHas2: %d KMas1: %d\n", MDiv4, MHas2, MHas1);
+#if 0
+	printf("M: %d, k: %d\n", M, K);
+	printf("KDiv4: %d, KHas2: %d KHas1: %d\n", KDiv4, KHas2, KHas1);
+	printf("MDiv4: %d, MHas2: %d KMas1: %d\n", MDiv4, MHas2, MHas1);
+#endif
 
 	#pragma omp parallel for num_threads(numThreads) schedule(static)
 	for(j = 0; j < MDiv4; j++)
@@ -94,7 +96,6 @@ void tcopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t M, uint32_t stride,
 		}
 	}
 
-#if 1
 	if(MHas2)
 	{
 		pSrcStart = (uint32_t *)pSrc + MDiv4*4*stride;
@@ -140,7 +141,7 @@ void tcopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t M, uint32_t stride,
 			*(pDstStart+1) = *(pSrcStart + stride);
 		}
 	}
-#endif
+
 	if (MHas1)
 	{
 		pSrcStart = (uint32_t *)pSrc + (M-1)*stride;
@@ -167,9 +168,11 @@ void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t N, uint32_t stride,
 	pDst1x4Start = pDst2x4Start = (uint32_t *)pDst + 4*K*NDiv4;
 	if(NHas2) pDst1x4Start = (uint32_t *)pDst2x4Start + 2*K;
 
-	//printf("K: %d, N: %d\n", K, N);
-	//printf("KDiv4: %d, KHas2: %d KHas1: %d\n", KDiv4, KHas2, KHas1);
-	//printf("NDiv4: %d, NHas2: %d NNas1: %d\n", NDiv4, NHas2, NHas1);
+#if 0
+	printf("K: %d, N: %d\n", K, N);
+	printf("KDiv4: %d, KHas2: %d KHas1: %d\n", KDiv4, KHas2, KHas1);
+	printf("NDiv4: %d, NHas2: %d NNas1: %d\n", NDiv4, NHas2, NHas1);
+#endif
 
 	#pragma omp parallel for num_threads(numThreads) schedule(static)
 	for(j = 0; j < KDiv4; j++)
