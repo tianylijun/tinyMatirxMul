@@ -7,6 +7,10 @@
 extern "C" {
 #endif
 
+uint32_t tcopy_4x4_asm_sparse(const uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
+uint32_t tcopy_2x4_asm_sparse(const uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
+uint32_t tcopy_1x4_asm_sparse(const uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
+
 void tcopy_4x4_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 void tcopy_2x4_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 void tcopy_1x4_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
