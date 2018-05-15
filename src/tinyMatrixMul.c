@@ -5,7 +5,7 @@
 
 #define ASM_TCOPY
 
-void tcopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t N, uint32_t stride, float *pDst, uint32_t numThreads)
+void tcopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t M, uint32_t stride, float *pDst, uint32_t numThreads)
 {
 	uint32_t i = 0, j = 0;
 
@@ -13,14 +13,18 @@ void tcopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t N, uint32_t stride,
 	uint32_t KHas2 = (K>>1)&1;
 	uint32_t KHas1 = K&1;
 
-	uint32_t NDiv4 = N>>2;
-	uint32_t NHas2 = (N>>1)&1;
-	uint32_t NHas1 = N&1;
+	uint32_t MDiv4 = M>>2;
+	uint32_t MHas2 = (M>>1)&1;
+	uint32_t MHas1 = M&1;
 
 	uint32_t *pSrcStart, *pDstStart;
 
+	//printf("M: %d, k: %d\n", M, K);
+	//printf("KDiv4: %d, KHas2: %d KHas1: %d\n", KDiv4, KHas2, KHas1);
+	//printf("MDiv4: %d, MHas2: %d KMas1: %d\n", MDiv4, MHas2, MHas1);
+
 	#pragma omp parallel for num_threads(numThreads) schedule(static)
-	for(j = 0; j < NDiv4; j++)
+	for(j = 0; j < MDiv4; j++)
 	{
 		pSrcStart = (uint32_t *)pSrc + j*4*stride;
 		pDstStart = (uint32_t *)pDst + j*4*K;
@@ -90,17 +94,18 @@ void tcopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t N, uint32_t stride,
 		}
 	}
 
-	if(NHas2)
+#if 1
+	if(MHas2)
 	{
-		pSrcStart = (uint32_t *)pSrc + j*4*stride;
-		pDstStart = (uint32_t *)pDst + j*4*K;
+		pSrcStart = (uint32_t *)pSrc + MDiv4*4*stride;
+		pDstStart = (uint32_t *)pDst + MDiv4*4*K;
 		
 		#pragma omp parallel for num_threads(numThreads) schedule(static)
 		for( i = 0; i < KDiv4; i++)
 		{
 			/* Do 4x2 patch copy */
 #ifdef ASM_TCOPY
-			tcopy_4x2_asm(pSrcStart + i*4, 4*stride, pDstStart + i*16);
+			tcopy_4x2_asm(pSrcStart + i*4, 4*stride, pDstStart + i*8);
 #else
 			uint32x4x2_t src32x4x2;
 			src32x4x2.val[0] = vld1q_u32(pSrcStart + i*4 + 0*stride);
@@ -135,16 +140,16 @@ void tcopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t N, uint32_t stride,
 			*(pDstStart+1) = *(pSrcStart + stride);
 		}
 	}
-
-	if (NHas1)
+#endif
+	if (MHas1)
 	{
-		pSrcStart = (uint32_t *)pSrc + (N-1)*stride;
-		pDstStart = (uint32_t *)pDst + (N-1)*K;
+		pSrcStart = (uint32_t *)pSrc + (M-1)*stride;
+		pDstStart = (uint32_t *)pDst + (M-1)*K;
 		memcpy(pDstStart, pSrcStart, K*sizeof(*pSrc));
 	}
 }
 
-void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t M, uint32_t stride, float *pDst, uint32_t numThreads)
+void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t N, uint32_t stride, float *pDst, uint32_t numThreads)
 {
 	uint32_t i = 0, j = 0;
 
@@ -152,15 +157,19 @@ void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t M, uint32_t stride,
 	uint32_t KHas2 = (K>>1)&1;
 	uint32_t KHas1 = K&1;
 
-	uint32_t MDiv4 = M>>2;
-	uint32_t MHas2 = (M>>1)&1;
-	uint32_t MHas1 = M&1;
+	uint32_t NDiv4 = N>>2;
+	uint32_t NHas2 = (N>>1)&1;
+	uint32_t NHas1 = N&1;
 
 	uint32_t *pSrcStart, *pDstStart;
 	uint32_t *pDst2x4Start, *pDst1x4Start;
 
-	pDst2x4Start = (uint32_t *)pDst + 4*K*MDiv4;
-	pDst1x4Start = (uint32_t *)pDst2x4Start + 4*K*2;
+	pDst1x4Start = pDst2x4Start = (uint32_t *)pDst + 4*K*NDiv4;
+	if(NHas2) pDst1x4Start = (uint32_t *)pDst2x4Start + 2*K;
+
+	//printf("K: %d, N: %d\n", K, N);
+	//printf("KDiv4: %d, KHas2: %d KHas1: %d\n", KDiv4, KHas2, KHas1);
+	//printf("NDiv4: %d, NHas2: %d NNas1: %d\n", NDiv4, NHas2, NHas1);
 
 	#pragma omp parallel for num_threads(numThreads) schedule(static)
 	for(j = 0; j < KDiv4; j++)
@@ -168,15 +177,15 @@ void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t M, uint32_t stride,
 		pSrcStart = (uint32_t *)pSrc + j*4*stride;
 		pDstStart = (uint32_t *)pDst + j*4*4;
 
-		for( i = 0; i < MDiv4; i++)
+		for( i = 0; i < NDiv4; i++)
 		{
 			/* Do 4x4 patch copy */
 			ncopy_4x4_asm(pSrcStart + i*4, 4*stride, pDstStart + i*4*K);
 		}
 
-		if (MDiv4 > 0) pSrcStart += i*4;
+		if (NDiv4 > 0) pSrcStart += i*4;
 
-		if(MHas2)
+		if(NHas2)
 		{
 			/* Do 2x4 patch copy */
 			ncopy_2x4_asm(pSrcStart, 4*stride, pDst2x4Start + j*8);
@@ -184,7 +193,7 @@ void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t M, uint32_t stride,
 			pSrcStart += 2;
 		}
 
-		if(MHas1)
+		if(NHas1)
 		{
 			/* Do 1x4patch copy */
 			ncopy_1x4_asm(pSrcStart, 4*stride, pDst1x4Start + j*4);
@@ -193,21 +202,21 @@ void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t M, uint32_t stride,
 
 	if(KHas2)
 	{
-		pSrcStart = (uint32_t *)pSrc + j*4*stride;
-		pDstStart = (uint32_t *)pDst + j*4*4;
+		pSrcStart = (uint32_t *)pSrc + KDiv4*4*stride;
+		pDstStart = (uint32_t *)pDst + KDiv4*4*4;
 
 		#pragma omp parallel for num_threads(numThreads) schedule(static)
-		for( i = 0; i < MDiv4; i++)
+		for( i = 0; i < NDiv4; i++)
 		{
 			/* Do 4x2 patch copy */
 			ncopy_4x2_asm(pSrcStart + i*4, 4*stride, pDstStart + i*4*K);
 		}
 
-		if (MDiv4 > 0) pSrcStart += i*4;
+		if (NDiv4 > 0) pSrcStart += i*4;
 
-		if(MHas2)
+		if(NHas2)
 		{
-			uint32_t *pTmp = pDst2x4Start + j*8;
+			uint32_t *pTmp = pDst2x4Start + KDiv4*8;
 
 			/* Do 2x2 patch copy */
 			*(pTmp+0) = *(pSrcStart);
@@ -216,44 +225,49 @@ void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t M, uint32_t stride,
 			*(pTmp+3) = *(pSrcStart + stride + 1);
 
 			pSrcStart += 2;
-			pDst2x4Start += 4;
 		}
 
-		if(MHas1)
+		if(NHas1)
 		{
-			uint32_t *pTmp = pDst1x4Start + j*4;
+			uint32_t *pTmp = pDst1x4Start + KDiv4*4;
 
 			/* Do 1x2 patch copy */
 			*(pTmp+0) = *(pSrcStart);
 			*(pTmp+1) = *(pSrcStart + stride);
-
-			pDst1x4Start += 2;
 		}
 	}
 
 	if (KHas1)
 	{
 		pSrcStart = (uint32_t *)pSrc + (K-1)*stride;
-		pDstStart = (uint32_t *)pDst + (K-1)*4;
+		pDstStart = (uint32_t *)pDst + 4*4*KDiv4;
 
-		for( i = 0; i < MDiv4; i++)
+		if (KHas2) pDstStart += 2*4; 
+
+		for( i = 0; i < NDiv4; i++)
 		{
 			/* Do 4x1 patch copy */
 			ncopy_4x1_asm(pSrcStart + i*4, 4*stride, pDstStart + i*4*K);
 		}
 		
-		if (MDiv4 > 0) pSrcStart += i*4;
+		pSrcStart += NDiv4*4;
 
-		if(MHas2)
+		if(NHas2)
 		{
+			uint32_t *pTmp = pDst2x4Start + KDiv4*8;
+			if (KHas2) pTmp += 4;
+
 			/* Do 2x1 patch copy */
-			*(pDst2x4Start+0) = *(pSrcStart);
-			*(pDst2x4Start+1) = *(pSrcStart + 1);
+			*(pTmp+0) = *(pSrcStart);
+			*(pTmp+1) = *(pSrcStart + 1);
 
 			pSrcStart += 2;
 		}
 
-		if(MHas1) *(pDst1x4Start+0) = *(pSrcStart);
+		if(NHas1) 
+		{
+			*((uint32_t *)pDst + K*N - 1) = *(pSrcStart);
+		}
 	}
 }
 

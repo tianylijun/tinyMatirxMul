@@ -113,7 +113,7 @@ _ncopy_4x1_asm:
 ncopy_4x1_asm:
 #endif
 	ld1 {VSRC_4S_0}, [SRC]
-	st2 {VSRC_4S_0, VSRC_4S_1}, [DST]
+	st1 {VSRC_4S_0}, [DST]
 
 	ret
 #endif
