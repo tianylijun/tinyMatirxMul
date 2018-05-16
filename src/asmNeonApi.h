@@ -24,6 +24,17 @@ void ncopy_4x2_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 void ncopy_4x1_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 
 void fmul_4xkx4_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag);
+void fmul_4xkx2_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag);
+void fmul_4xkx1_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag);
+
+void fmul_2xkx4_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag);
+void fmul_2xkx2_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag);
+void fmul_2xkx1_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag);
+
+void fmul_1xkx4_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag);
+void fmul_1xkx2_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag);
+void fmul_1xkx1_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag);
+
 #ifdef __cplusplus
 }
 #endif

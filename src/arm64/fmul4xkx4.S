@@ -101,8 +101,7 @@ fmul_4xkx4_asm:
 	eor VSRC_16B_C3, VSRC_16B_C3, VSRC_16B_C3
 
 __LOOP_4_BEG:
-	cmp KDIV4, #0
-	beq __2_BEG
+	cbz KDIV4, __2_BEG
 
 	ld1  {VSRC_4S_A0, VSRC_4S_A1}, [A], #32
     ld1  {VSRC_4S_B0, VSRC_4S_B1, VSRC_4S_B2, VSRC_4S_B3}, [B], #64
@@ -120,8 +119,7 @@ __LOOP_4_BEG:
 	b __LOOP_4_BEG
 
 __2_BEG:
-	cmp KHAS2, #0
-	beq __1_BEG
+	cbz KHAS2, __1_BEG
 
 	ld1  {VSRC_4S_A0, VSRC_4S_A1}, [A], #32
     ld1  {VSRC_4S_B0, VSRC_4S_B1}, [B], #32
@@ -132,8 +130,7 @@ __2_BEG:
 	fmla_col_4x2x4 VSRC_4S_C2, VSRC_4S_C3, VSRC_S_A1
 
 __1_BEG:
-	cmp KHAS1, #0
-	beq __END
+	cbz KHAS1, __END
 
 	ld1  {VSRC_4S_A0}, [A]
     ld1  {VSRC_4S_B0}, [B]

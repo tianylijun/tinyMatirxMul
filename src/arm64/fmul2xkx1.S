@@ -70,21 +70,21 @@
 #define VSRC_8B_C2      V18.8B
 #define VSRC_8B_C3      V19.8B
 
-/* void fmul_4xkx1_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag) */
+/* void fmul_1xkx1_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag) */
 
 	.text
 	.align 5
 #ifdef __APPLE__
-	.global _fmul_4xkx1_asm
-_fmul_4xkx1_asm:
+	.global _fmul_2xkx1_asm
+_fmul_2xkx1_asm:
 #else
-	.global fmul_4xkx1_asm
-fmul_4xkx1_asm:
+	.global fmul_2xkx1_asm
+fmul_2xkx1_asm:
 #endif
 
 	prfm PLDL1KEEP, [A, #64]
 	sxtw CSTRIDEX, CSTRIDE
-	eor VSRC_16B_C0, VSRC_16B_C0, VSRC_16B_C0
+	eor VSRC_8B_C0, VSRC_8B_C0, VSRC_8B_C0
 	lsr KDIV4, K, #2
 	prfm PLDL1KEEP, [B, #64]
 	and KHAS2, K, #2
@@ -94,17 +94,16 @@ __LOOP_4_BEG:
 	cbz KDIV4, __2_BEG
 
 	/* transport first */
-	ld4  {VSRC_4S_A0, VSRC_4S_A1, VSRC_4S_A2, VSRC_4S_A3}, [A], #64
+	ld4  {VSRC_2S_A0, VSRC_2S_A1, VSRC_2S_A2, VSRC_2S_A3}, [A], #32
     ld1  {VSRC_4S_B0}, [B], #16
 
-    prfm PLDL1KEEP, [A, #64]
-
-    fmla VSRC_4S_C0, VSRC_4S_A0, VSRC_4S_B0_S0
-    fmla VSRC_4S_C0, VSRC_4S_A1, VSRC_4S_B0_S1
-    prfm PLDL1KEEP, [B, #32]
-    fmla VSRC_4S_C0, VSRC_4S_A2, VSRC_4S_B0_S2
+    prfm PLDL1KEEP, [A, #32]
 	subs KDIV4, KDIV4, #1
-    fmla VSRC_4S_C0, VSRC_4S_A3, VSRC_4S_B0_S3
+    fmla VSRC_2S_C0, VSRC_2S_A0, VSRC_4S_B0_S0
+    fmla VSRC_2S_C0, VSRC_2S_A1, VSRC_4S_B0_S1
+    prfm PLDL1KEEP, [B, #16]
+    fmla VSRC_2S_C0, VSRC_2S_A2, VSRC_4S_B0_S2
+    fmla VSRC_2S_C0, VSRC_2S_A3, VSRC_4S_B0_S3
 
 	b __LOOP_4_BEG
 
@@ -112,25 +111,23 @@ __2_BEG:
 	cbz KHAS2, __1_BEG
 
 	/* transport first */
-	ld2  {VSRC_4S_A0, VSRC_4S_A1}, [A], #32
+	ld2  {VSRC_2S_A0, VSRC_2S_A1}, [A], #16
     ld1  {VSRC_2S_B0}, [B], #8
 
-    fmla VSRC_4S_C0, VSRC_4S_A0, VSRC_4S_B0_S0
-    fmla VSRC_4S_C0, VSRC_4S_A1, VSRC_4S_B0_S1
+    fmla VSRC_2S_C0, VSRC_2S_A0, VSRC_4S_B0_S0
+    fmla VSRC_2S_C0, VSRC_2S_A1, VSRC_4S_B0_S1
 
 __1_BEG:
 	cbz KHAS1, __END
 
-	ld1  {VSRC_4S_A0}, [A]
+	ld1  {VSRC_2S_A0}, [A]
     ld1  VSRC_4S_B0_L0, [B]
 
-    fmla VSRC_4S_C0, VSRC_4S_A0, VSRC_4S_B0_S0
+    fmla VSRC_2S_C0, VSRC_2S_A0, VSRC_4S_B0_S0
 
 __END:
 	st1 VSRC_4S_C0_0, [C], CSTRIDEX
-	st1 VSRC_4S_C0_1, [C], CSTRIDEX
-	st1 VSRC_4S_C0_2, [C], CSTRIDEX
-	st1 VSRC_4S_C0_3, [C]
+	st1 VSRC_4S_C0_1, [C]
 
 	ret
 #endif
