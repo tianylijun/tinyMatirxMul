@@ -7,14 +7,15 @@
 extern "C" {
 #endif
 
-uint32_t tcopy_4x4_asm_sparse(const uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
-uint32_t tcopy_2x4_asm_sparse(const uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
-uint32_t tcopy_1x4_asm_sparse(const uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
+uint32_t ncopy_4x4_asm_sparse(const uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
+uint32_t ncopy_2x4_asm_sparse(const uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
+uint32_t ncopy_1x4_asm_sparse(const uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 
 void tcopy_4x4_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 void tcopy_2x4_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 void tcopy_1x4_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 void tcopy_4x2_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
+void tcopy_4x1_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 
 void ncopy_4x4_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 void ncopy_2x4_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
@@ -22,6 +23,7 @@ void ncopy_1x4_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 void ncopy_4x2_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 void ncopy_4x1_asm(uint32_t *pSrc, uint32_t stride, uint32_t *pDst);
 
+void fmul_4xkx4_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag);
 #ifdef __cplusplus
 }
 #endif

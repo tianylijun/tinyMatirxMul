@@ -223,137 +223,107 @@ void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t N, uint32_t stride,
 	}
 }
 
-static int tinySgemm4xkx4(const float *A, const float *B, const float *Out, uint32_t M, uint32_t N, uint32_t K, uint32_t *pSparseFlag)
+static void inline tinySgemm4xkx4(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
+{
+	fmul_4xkx4_asm(A, B, C, K, CStride, pSparseFlag);
+}
+
+static void inline tinySgemm4xkx2(const float *A, const float *B, const float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
+{
+	fmul_4xkx2_asm(A, B, C, K, CStride, pSparseFlag);
+}
+
+static void inline tinySgemm4xkx1(const float *A, const float *B, const float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
+{
+	fmul_4xkx1_asm(A, B, C, K, pSparseFlag, CStride);
+}
+
+static void inline tinySgemm2xkx4(const float *A, const float *B, const float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
+{
+
+}
+
+static void inline tinySgemm2xkx2(const float *A, const float *B, const float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
+{
+
+}
+
+static void inline tinySgemm2xkx1(const float *A, const float *B, const float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
+{
+
+}
+
+static void inline tinySgemm1xkx4(const float *A, const float *B, const float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
+{
+
+}
+
+static void inline tinySgemm1xkx2(const float *A, const float *B, const float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
+{
+
+}
+
+static void inline tinySgemm1xkx1(const float *A, const float *B, const float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
+{
+
+}
+
+static int ncopy_4_k(const float *pSrc, float *pDst, uint32_t K, uint32_t stride, uint32_t numThreads, uint32_t *pSparseFlag)
 {
 	int ret = 0;
 	uint32_t i, KDiv4, KHas2, KHas1;
+	uint32_t stridex4 = 4*stride;
 
 	KDiv4 = K>>2; KHas2 = (K>>1)&1; KHas1 = K&1;
 
-	return ret;
-}
-
-static int tinySgemm4xkx2(const float *A, const float *B, const float *Out, uint32_t M, uint32_t N, uint32_t K)
-{
-	int ret = 0;
-
-
-	return ret;
-}
-
-static int tinySgemm4xkx1(const float *A, const float *B, const float *Out, uint32_t M, uint32_t N, uint32_t K)
-{
-	int ret = 0;
-
-
-	return ret;
-}
-
-static int tinySgemm2xkx4(const float *A, const float *B, const float *Out, uint32_t M, uint32_t N, uint32_t K)
-{
-	int ret = 0;
-
-
-	return ret;
-}
-
-static int tinySgemm2xkx2(const float *A, const float *B, const float *Out, uint32_t M, uint32_t N, uint32_t K)
-{
-	int ret = 0;
-
-
-	return ret;
-}
-
-static int tinySgemm2xkx1(const float *A, const float *B, const float *Out, uint32_t M, uint32_t N, uint32_t K)
-{
-	int ret = 0;
-
-
-	return ret;
-}
-
-static int tinySgemm1xkx4(const float *A, const float *B, const float *Out, uint32_t M, uint32_t N, uint32_t K)
-{
-	int ret = 0;
-
-
-	return ret;
-}
-
-static int tinySgemm1xkx2(const float *A, const float *B, const float *Out, uint32_t M, uint32_t N, uint32_t K)
-{
-	int ret = 0;
-
-
-	return ret;
-}
-
-static int tinySgemm1xkx1(const float *A, const float *B, const float *Out, uint32_t M, uint32_t N, uint32_t K)
-{
-	int ret = 0;
-
-
-	return ret;
-}
-
-static int tcopy_4_k(const float *pSrc, float *pDst, uint32_t K, uint32_t stride, uint32_t numThreads, uint32_t *sparseFlag)
-{
-	int ret = 0;
-	uint32_t i, KDiv4, KHas2, KHas1;
-
-	KDiv4 = K>>2; KHas2 = (K>>1)&1; KHas1 = K&1;
-
-	for( i = 0; i < KDiv4; i++)
+	for ( i = 0; i < KDiv4; i++)
 	{
-		sparseFlag[i] = tcopy_4x4_asm_sparse((uint32_t *)pSrc, 4*stride, (uint32_t *)pDst);
+		pSparseFlag[i] = ncopy_4x4_asm_sparse((uint32_t *)pSrc, stridex4, (uint32_t *)pDst);
 
 		pSrc += 4;
 		pDst += 16;
 	}
 
-	if(KHas2)
+	if (KHas2)
 	{
-		sparseFlag[KDiv4] = tcopy_2x4_asm_sparse((uint32_t *)pSrc, 4*stride, (uint32_t *)pDst);
+		pSparseFlag[KDiv4] = ncopy_2x4_asm_sparse((uint32_t *)pSrc, stridex4, (uint32_t *)pDst);
 
 		pSrc += 2;
 		pDst += 8;
 	}
 
-	if(KHas1)
-	{
-		sparseFlag[KDiv4+KHas2] = tcopy_1x4_asm_sparse((uint32_t *)pSrc, 4*stride, (uint32_t *)pDst);
-	}
+	if (KHas1)
+		pSparseFlag[KDiv4+KHas2] = ncopy_1x4_asm_sparse((uint32_t *)pSrc, stridex4, (uint32_t *)pDst);
 
 	return ret;
 }
 
-static int tcopy_2_k(const float *pSrc, float *pDst, uint32_t K, uint32_t stride, uint32_t numThreads)
+static int ncopy_2_k(const float *pSrc, float *pDst, uint32_t K, uint32_t stride, uint32_t numThreads)
 {
 	int ret = 0;
 	uint32_t i, KDiv4, KHas2, KHas1;
 
 	KDiv4 = K>>2; KHas2 = (K>>1)&1; KHas1 = K&1;
 
-	for( i = 0; i < KDiv4; i++)
+	for ( i = 0; i < KDiv4; i++)
 	{
-		tcopy_4x2_asm((uint32_t *)pSrc, 4*stride, (uint32_t *)pDst);
+		ncopy_4x2_asm((uint32_t *)pSrc, 4*stride, (uint32_t *)pDst);
 		pSrc += 4;
 		pDst += 8;
 	}
 
-	if(KHas2)
+	if (KHas2)
 	{
 		*(pDst+0) = *(pSrc);
-		*(pDst+1) = *(pSrc + 1);
-		*(pDst+2) = *(pSrc + stride);
+		*(pDst+1) = *(pSrc + stride);
+		*(pDst+2) = *(pSrc + 1);
 		*(pDst+3) = *(pSrc + stride + 1);
 
 		pSrc += 2;
 		pDst += 4;
 	}
 
-	if(KHas1)
+	if (KHas1)
 	{
 		/* Do 1x2 patch copy */
 		*(pDst+0) = *(pSrc);
@@ -363,64 +333,63 @@ static int tcopy_2_k(const float *pSrc, float *pDst, uint32_t K, uint32_t stride
 	return ret;
 }
 
-static int ncopy_k_4(const float *pSrc, float *pDst, uint32_t K, uint32_t stride, uint32_t numThreads)
+static int tcopy_k_4(const float *pSrc, float *pDst, uint32_t K, uint32_t stride, uint32_t numThreads)
 {
 	int ret = 0;
 	uint32_t i, KDiv4, KHas2, KHas1;
+	uint32_t stridex4 = 4*stride;
 
 	KDiv4 = K>>2; KHas2 = (K>>1)&1; KHas1 = K&1;
 
-	for( i = 0; i < KDiv4; i++)
+	for ( i = 0; i < KDiv4; i++)
 	{
-		ncopy_4x4_asm((uint32_t *)pSrc, 4*stride, (uint32_t *)pDst);
+		tcopy_4x4_asm((uint32_t *)pSrc, stridex4, (uint32_t *)pDst);
 
 		pSrc += 4*stride;
 		pDst += 16;
 	}
 
-	if(KHas2)
+	if (KHas2)
 	{
-		ncopy_4x2_asm((uint32_t *)pSrc, 4*stride, (uint32_t *)pDst);
+		tcopy_4x2_asm((uint32_t *)pSrc, stridex4, (uint32_t *)pDst);
 
 		pSrc += 2*stride;
 		pDst += 8;
 	}
 
-	if(KHas1)
-	{
-		ncopy_4x1_asm((uint32_t *)pSrc, 4*stride, (uint32_t *)pDst);
-	}
+	if (KHas1)
+		tcopy_4x1_asm((uint32_t *)pSrc, stridex4, (uint32_t *)pDst);
 
 	return ret;
 }
 
-static int ncopy_k_2(const float *pSrc, float *pDst, uint32_t K, uint32_t stride, uint32_t numThreads)
+static int tcopy_k_2(const float *pSrc, float *pDst, uint32_t K, uint32_t stride, uint32_t numThreads)
 {
 	int ret = 0;
 	uint32_t i, KDiv4, KHas2, KHas1;
 
 	KDiv4 = K>>2; KHas2 = (K>>1)&1; KHas1 = K&1;
 
-	for( i = 0; i < KDiv4; i++)
+	for ( i = 0; i < KDiv4; i++)
 	{
-		ncopy_2x4_asm((uint32_t *)pSrc, 4*stride, (uint32_t *)pDst);
+		tcopy_2x4_asm((uint32_t *)pSrc, 4*stride, (uint32_t *)pDst);
 
 		pSrc += 4*stride;
 		pDst += 8;
 	}
 
-	if(KHas2)
+	if (KHas2)
 	{
 		pDst[0] = *pSrc;
-		pDst[1] = *(pSrc + stride);
-		pDst[2] = *(pSrc + 1);
-		pDst[3] = *(pSrc + 1 + stride);
+		pDst[1] = *(pSrc + 1);
+		pDst[2] = *(pSrc + stride);
+		pDst[3] = *(pSrc + stride + 1);
 
 		pSrc += 2*stride;
 		pDst += 4;
 	}
 
-	if(KHas1)
+	if (KHas1)
 	{
 		pDst[0] = pSrc[0];
 		pDst[1] = pSrc[1];
@@ -429,22 +398,22 @@ static int ncopy_k_2(const float *pSrc, float *pDst, uint32_t K, uint32_t stride
 	return ret;
 }
 
-static int ncopy_k_1(const float *pSrc, float *pDst, uint32_t K, uint32_t stride, uint32_t numThreads)
+static int tcopy_k_1(const float *pSrc, float *pDst, uint32_t K, uint32_t stride, uint32_t numThreads)
 {
 	int ret = 0;
 	uint32_t i, KDiv4, KHas2, KHas1;
 
 	KDiv4 = K>>2; KHas2 = (K>>1)&1; KHas1 = K&1;
 
-	for( i = 0; i < KDiv4; i++)
+	for ( i = 0; i < KDiv4; i++)
 	{
-		ncopy_1x4_asm((uint32_t *)pSrc, 4*stride, (uint32_t *)pDst);
+		tcopy_1x4_asm((uint32_t *)pSrc, 4*stride, (uint32_t *)pDst);
 
 		pSrc += 4*stride;
 		pDst += 4;
 	}
 
-	if(KHas2)
+	if (KHas2)
 	{
 		pDst[0] = *pSrc;
 		pDst[1] = *(pSrc + stride);
@@ -453,12 +422,13 @@ static int ncopy_k_1(const float *pSrc, float *pDst, uint32_t K, uint32_t stride
 		pDst += 2;
 	}
 
-	if(KHas1)
+	if (KHas1)
 		pDst[0] = pSrc[0];
 
 	return ret;
 }
 
+/* A[M, K] weight mat, B[K, N] img mat */
 int tinyMatrixMul(const float *A, const float *B, float *C, uint32_t M, uint32_t N, uint32_t K, uint32_t numThreads)
 {
 	#define MAX_THREAD_NUM (4)
@@ -474,6 +444,7 @@ int tinyMatrixMul(const float *A, const float *B, float *C, uint32_t M, uint32_t
 
 	if (numThreads > MAX_THREAD_NUM) numThreads = MAX_THREAD_NUM;
 
+	/* float wwight[4*K] + float input[numThreads*4*K] + uint32_t SparseFlag[numThreads*(KDiv4 + KHas2 + KHas1)]*/
 	pWeight = (float *)malloc((numThreads + 1)*4*K*sizeof(float) + numThreads*(KDiv4 + KHas2 + KHas1)*sizeof(uint32_t));
 	if (NULL == pWeight)
 	{
@@ -483,7 +454,7 @@ int tinyMatrixMul(const float *A, const float *B, float *C, uint32_t M, uint32_t
 
 	for(i = 0; i < numThreads; i++)
 	{
-		pInput[i] = pWeight + (i+1)*4*K;
+		pInput[i] = pWeight + (i + 1)*4*K;
 		pSparseFlag[i] = (uint32_t *)(pWeight + (numThreads + 1)*4*K) + i*(KDiv4 + KHas2 + KHas1);
 	}
 
@@ -492,55 +463,55 @@ int tinyMatrixMul(const float *A, const float *B, float *C, uint32_t M, uint32_t
 	printf("NDiv4: %d, NHas2: %d NNas1: %d\n", NDiv4, NHas2, NHas1);
 	printf("KDiv4: %d, KHas2: %d KHas1: %d\n", KDiv4, KHas2, KHas1);
 
-	#pragma omp parallel for num_threads(numThreads)
+	//#pragma omp parallel for num_threads(numThreads)
 	for (i = 0; i < MDiv4; i++)
 	{
 		pOutCur = C + i*N*4;
 
-		#ifdef OPENMP
+		#if 0//def OPENMP
 		inputBufferIdx = omp_get_thread_num();
 		#endif
 
-		tcopy_4_k(A + i*4*K, pWeight, K, K, numThreads, pSparseFlag[inputBufferIdx]);
+		ncopy_4_k(A + i*4*K, pWeight, K, K, numThreads, pSparseFlag[inputBufferIdx]);
 
 		for (j = 0; j < NDiv4; j++)
 		{
-			ncopy_k_4(B + j*4, pInput[inputBufferIdx], K, N, numThreads);
+			tcopy_k_4(B + j*4, pInput[inputBufferIdx], K, N, numThreads);
 
-			tinySgemm4xkx4(pWeight, pInput[inputBufferIdx], pOutCur, 4, 4, K, pSparseFlag[inputBufferIdx]);
+			tinySgemm4xkx4(pWeight, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
 
 			pOutCur += 4;
 		}
 
 		if (NHas2)
 		{
-			ncopy_k_2(B + NDiv4*4, pInput[inputBufferIdx], K, N, numThreads);
+			tcopy_k_2(B + NDiv4*4, pInput[inputBufferIdx], K, N, numThreads);
 
-			tinySgemm4xkx2(pWeight, pInput[inputBufferIdx], pOutCur, 4, 2, K);
+			tinySgemm4xkx2(pWeight, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
 
 			pOutCur += 2;
 		}
 
 		if (NHas1)
 		{
-			ncopy_k_1(B + N - 1, pInput[inputBufferIdx], K, N, numThreads);
+			tcopy_k_1(B + N - 1, pInput[inputBufferIdx], K, N, numThreads);
 
-			tinySgemm4xkx1(pWeight, pInput[inputBufferIdx], pOutCur, 4, 1, K);
+			tinySgemm4xkx1(pWeight, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
 		}
 	}
 
 	if (MHas2)
 	{
 		float *pOutCur = C + MDiv4*N*4;
-		tcopy_2_k(A + MDiv4*4*K, pWeight, K, K, numThreads);
+		ncopy_2_k(A + MDiv4*4*K, pWeight, K, K, numThreads);
 
 		/* 4x2 */
-		#pragma omp parallel for num_threads(numThreads)
+		//#pragma omp parallel for num_threads(numThreads)
 		for (j = 0; j < NDiv4; j++)
 		{
-			ncopy_k_4(B + j*4, pInput[inputBufferIdx], K, N, numThreads);
+			tcopy_k_4(B + j*4, pInput[inputBufferIdx], K, N, numThreads);
 
-			tinySgemm2xkx4(pWeight, pInput[inputBufferIdx], pOutCur, 2, 4, K);
+			tinySgemm2xkx4(pWeight, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
 
 			pOutCur += 4;
 		}
@@ -548,9 +519,9 @@ int tinyMatrixMul(const float *A, const float *B, float *C, uint32_t M, uint32_t
 		if (NHas2)
 		{
 			/* 2x2 */
-			ncopy_k_2(B + NDiv4*4, pInput[inputBufferIdx], K, N, numThreads);
+			tcopy_k_2(B + NDiv4*4, pInput[inputBufferIdx], K, N, numThreads);
 
-			tinySgemm2xkx2(pWeight, pInput[inputBufferIdx], pOutCur, 2, 2, K);
+			tinySgemm2xkx2(pWeight, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
 
 			pOutCur += 2;
 		}
@@ -558,9 +529,9 @@ int tinyMatrixMul(const float *A, const float *B, float *C, uint32_t M, uint32_t
 		if (NHas1)
 		{
 			/* 1x2 */
-			ncopy_k_1(B + N - 1, pInput[inputBufferIdx], K, N, numThreads);
+			tcopy_k_1(B + N - 1, pInput[inputBufferIdx], K, N, numThreads);
 
-			tinySgemm2xkx1(pWeight, pInput[inputBufferIdx], pOutCur, 2, 1, K);
+			tinySgemm2xkx1(pWeight, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
 		}
 	}
 
@@ -569,30 +540,30 @@ int tinyMatrixMul(const float *A, const float *B, float *C, uint32_t M, uint32_t
 		float *pOutCur = C + (M-1)*N;
 		const float *pWeightCur = A + (M - 1)*K;
 
-		#pragma omp parallel for num_threads(numThreads)
+		//#pragma omp parallel for num_threads(numThreads)
 		for (j = 0; j < NDiv4; j++)
 		{
-			ncopy_k_4(B + j*4, pInput[inputBufferIdx], K, N, numThreads);
+			tcopy_k_4(B + j*4, pInput[inputBufferIdx], K, N, numThreads);
 
-			tinySgemm1xkx4(pWeightCur, pInput[inputBufferIdx], pOutCur, 1, 4, K);
+			tinySgemm1xkx4(pWeightCur, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
 
 			pOutCur += 4;
 		}
 
 		if (NHas2)
 		{
-			ncopy_k_2(B + NDiv4*4, pInput[inputBufferIdx], K, N, numThreads);
+			tcopy_k_2(B + NDiv4*4, pInput[inputBufferIdx], K, N, numThreads);
 
-			tinySgemm1xkx2(pWeightCur, pInput[inputBufferIdx], pOutCur, 1, 2, K);
+			tinySgemm1xkx2(pWeightCur, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
 
 			pOutCur += 2;
 		}
 
 		if (NHas1)
 		{
-			ncopy_k_1(B + N - 1, pInput[inputBufferIdx], K, N, numThreads);
+			tcopy_k_1(B + N - 1, pInput[inputBufferIdx], K, N, numThreads);
 
-			tinySgemm1xkx1(pWeightCur, pInput[inputBufferIdx], pOutCur, 1, 1, K);
+			tinySgemm1xkx1(pWeightCur, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
 		}
 	}
 
