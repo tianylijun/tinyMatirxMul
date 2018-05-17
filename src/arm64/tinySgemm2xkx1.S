@@ -71,7 +71,6 @@
 #define VSRC_8B_C3      V19.8B
 
 /* void tinySgemm2xkx1(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag) */
-
 	.text
 	.align 5
 #ifdef __APPLE__
@@ -82,11 +81,11 @@ _tinySgemm2xkx1:
 tinySgemm2xkx1:
 #endif
 
-	prfm PLDL1KEEP, [A, #64]
+	prfm PLDL1KEEP, [A, #32]
 	sxtw CSTRIDEX, CSTRIDE
 	eor VSRC_8B_C0, VSRC_8B_C0, VSRC_8B_C0
 	lsr KDIV4, K, #2
-	prfm PLDL1KEEP, [B, #64]
+	prfm PLDL1KEEP, [B, #16]
 	and KHAS2, K, #2
 	and KHAS1, K, #1
 
@@ -114,7 +113,9 @@ __2_BEG:
 	ld2  {VSRC_2S_A0, VSRC_2S_A1}, [A], #16
     ld1  {VSRC_2S_B0}, [B], #8
 
+    prfm PLDL1KEEP, [A, #16]
     fmla VSRC_2S_C0, VSRC_2S_A0, VSRC_4S_B0_S0
+    prfm PLDL1KEEP, [B, #16]
     fmla VSRC_2S_C0, VSRC_2S_A1, VSRC_4S_B0_S1
 
 __1_BEG:

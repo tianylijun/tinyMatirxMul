@@ -4,6 +4,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+#ifndef MAX_THREAD_NUM
+#define MAX_THREAD_NUM (4)
+#endif
+
+#define PAGE_SIZE_4K (4096)
+#define SIZE_ALIGN(size, alignment) ((size + alignment - 1) & (~alignment))
 
 #ifdef __cplusplus
 extern "C" {

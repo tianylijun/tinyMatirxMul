@@ -61,6 +61,7 @@ ncopy_4x4_asm_sparse:
 #else
 	st4 {VSRC_4S_0, VSRC_4S_1, VSRC_4S_2, VSRC_4S_3}, [DST]
 #endif
+	/* use as uint32_t, as .0f in hex is 0 */
 	addv VSRC_SUM_RET, VSRC_4S_SUM
 
 	mov w0, VSRC_SUM_S0

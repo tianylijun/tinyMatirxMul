@@ -89,7 +89,7 @@ _tinySgemm4xkx4:
 tinySgemm4xkx4:
 #endif
 
-	prfm PLDL1KEEP, [A, #64]
+	prfm PLDL1KEEP, [A, #32]
 	sxtw CSTRIDEX, CSTRIDE
 	eor VSRC_16B_C0, VSRC_16B_C0, VSRC_16B_C0
 	lsr KDIV4, K, #2
@@ -104,15 +104,16 @@ __LOOP_4_BEG:
 	cbz KDIV4, __2_BEG
 
 	ld1  {VSRC_4S_A0, VSRC_4S_A1}, [A], #32
+	subs KDIV4, KDIV4, #1
     ld1  {VSRC_4S_B0, VSRC_4S_B1, VSRC_4S_B2, VSRC_4S_B3}, [B], #64
 
     prfm PLDL1KEEP, [A, #64]
 	fmla_col_4x4x4 VSRC_4S_C0, VSRC_S_A0
-	fmla_col_4x4x4 VSRC_4S_C1, VSRC_S_A1
 	ld1  {VSRC_4S_A2, VSRC_4S_A3}, [A], #32
+	fmla_col_4x4x4 VSRC_4S_C1, VSRC_S_A1
 
 	prfm PLDL1KEEP, [B, #64]
-	subs KDIV4, KDIV4, #1
+	
 	fmla_col_4x4x4 VSRC_4S_C2, VSRC_S_A2
 	fmla_col_4x4x4 VSRC_4S_C3, VSRC_S_A3
 

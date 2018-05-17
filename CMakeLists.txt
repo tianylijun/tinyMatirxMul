@@ -5,6 +5,8 @@ message(CMAKE_CURRENT_SOURCE_DIR: ${CMAKE_CURRENT_SOURCE_DIR})
 message(CMAKE_CURRENT_BINARY_DIR: ${CMAKE_CURRENT_BINARY_DIR})
 message(PROJECT_BINARY_DIR: ${PROJECT_BINARY_DIR})
 
+option(ENABLE_OPENMP "openmp support" ON)
+
 ENABLE_LANGUAGE(ASM)
 
 file(GLOB LIB_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
@@ -18,9 +20,12 @@ file(GLOB LIB_SSRC ${CMAKE_CURRENT_SOURCE_DIR}/src/arm32/*.S)
 message(STATUS "ARCH: ARM32")
 endif()
 
-add_definitions(-fPIC)
+set(CMAKE_BUILD_TYPE Release)
 
-option(ENABLE_OPENMP "openmp support" ON)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-function")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Ofast")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffast-math")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
 
 if(ENABLE_OPENMP)
     find_package(OpenMP)
@@ -28,11 +33,9 @@ if(ENABLE_OPENMP)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     endif()
-    message(STATUS "OpenMP flags ${CMAKE_CXX_FLAGS}")
 endif()
 
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -std=c++11 -Wno-format")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g -std=c++11 -Wall")
+message(STATUS "C flags: ${CMAKE_C_FLAGS}")
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 

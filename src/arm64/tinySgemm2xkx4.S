@@ -76,9 +76,7 @@
      fmla    \sum_q1, VSRC_4S_B1, \col0[3]
 .endm
 
-
 /* void tinySgemm2xkx4(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag) */
-
 	.text
 	.align 5
 #ifdef __APPLE__
@@ -89,7 +87,7 @@ _tinySgemm2xkx4:
 tinySgemm2xkx4:
 #endif
 
-	prfm PLDL1KEEP, [A, #64]
+	prfm PLDL1KEEP, [A, #32]
 	sxtw CSTRIDEX, CSTRIDE
 	eor VSRC_16B_C0, VSRC_16B_C0, VSRC_16B_C0
 	lsr KDIV4, K, #2
@@ -105,9 +103,9 @@ __LOOP_4_BEG:
 	subs KDIV4, KDIV4, #1
     ld1  {VSRC_4S_B0, VSRC_4S_B1, VSRC_4S_B2, VSRC_4S_B3}, [B], #64
 
-    prfm PLDL1KEEP, [A, #32]
+    prfm PLDL1KEEP, [B, #64]
 	fmla_col_2x4x4 VSRC_4S_C0, VSRC_S_A0
-	prfm PLDL1KEEP, [B, #64]
+	prfm PLDL1KEEP, [A, #32]
 	fmla_col_2x4x4 VSRC_4S_C1, VSRC_S_A1
 
 	b __LOOP_4_BEG
@@ -118,9 +116,8 @@ __2_BEG:
 	ld1  {VSRC_4S_A0}, [A], #16
     ld1  {VSRC_4S_B0, VSRC_4S_B1}, [B], #32
     
-    prfm PLDL1KEEP, [A, #32]
+    prfm PLDL1KEEP, [B, #16]
 	fmla_col_2x2x4 VSRC_4S_C0, VSRC_4S_C1, VSRC_S_A0
-	prfm PLDL1KEEP, [B, #32]
 
 __1_BEG:
 	cbz KHAS1, __END

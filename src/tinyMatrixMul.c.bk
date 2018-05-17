@@ -306,16 +306,17 @@ int tinyMatrixMul(const float *A, const float *B, float *C, uint32_t M, uint32_t
 	uint32_t MDiv4, MHas2, MHas1, NDiv4, NHas2, NHas1, KDiv4, KHas2, KHas1;
 	float *pWeight, *pInput, *pOutCur;
 	uint32_t *pSparseFlag[MAX_THREAD_NUM];
-	uint32_t weightAlignSize, inputSize, sparseAlignSize, mallocAlignSize;
+	uint32_t weightAlignSize, inputSize, sparseAlignSize;
 
-	struct timeval tv_s, tv_e, beg, end;;
+	struct timeval tv_s, tv_e;
+    gettimeofday(&tv_s, NULL);
 
 	MDiv4 = M>>2; MHas2 = (M>>1)&1; MHas1 = M&1;
 	NDiv4 = N>>2; NHas2 = (N>>1)&1; NHas1 = N&1;
 	KDiv4 = K>>2; KHas2 = (K>>1)&1; KHas1 = K&1;
 
 #if 1
-	printf("[M N K Threads] [%d %d %d %d]\nMDiv4: %03d, MHas2: %d KMas1: %d\nNDiv4: %03d, NHas2: %d NNas1: %d\nKDiv4: %03d, KHas2: %d KHas1: %d\n",
+	printf("[M N K Threads- %d %d %d %d]\nMDiv4: %03d, MHas2: %d KMas1: %d\nNDiv4: %03d, NHas2: %d NNas1: %d\nKDiv4: %03d, KHas2: %d KHas1: %d\n",
 			M, N, K, numThreads, MDiv4, MHas2, MHas1, NDiv4, NHas2, NHas1, KDiv4, KHas2, KHas1);
 #endif
 
@@ -324,20 +325,22 @@ int tinyMatrixMul(const float *A, const float *B, float *C, uint32_t M, uint32_t
 	weightAlignSize = SIZE_ALIGN(4*K*sizeof(float), PAGE_SIZE_4K);
 	inputSize = SIZE_ALIGN(K*N*sizeof(float), PAGE_SIZE_4K);
 	sparseAlignSize = SIZE_ALIGN(numThreads*(KDiv4 + KHas2 + KHas1)*sizeof(uint32_t), PAGE_SIZE_4K);
-	mallocAlignSize = weightAlignSize + inputSize + sparseAlignSize;
 
-	pWeight = (float *)tinyMalloc(mallocAlignSize);
+	pWeight = (float *)tinyMalloc(weightAlignSize + inputSize + sparseAlignSize);
 	if (NULL == pWeight)
 	{
-		printf("tinyMalloc failed, %u\n", mallocAlignSize);
+		printf("tinyMalloc failed, %u\n", weightAlignSize + inputSize + sparseAlignSize);
 		return -1;
 	}
 
-	pInput = pWeight + (weightAlignSize>>2);
+	pInput = pWeight + weightAlignSize>>2;
 
 	for(i = 0; i < numThreads; i++)
-		pSparseFlag[i] = (uint32_t *)(pInput + (inputSize>>2)) + i*(KDiv4 + KHas2 + KHas1);
+		pSparseFlag[i] = (uint32_t *)(pInput + inputSize>>2) + i*(KDiv4 + KHas2 + KHas1);
 
+	gettimeofday(&tv_e, NULL);
+	printf("time0: %.1f\n", (tv_e.tv_sec * 1000000 - tv_s.tv_sec * 1000000 + tv_e.tv_usec - tv_s.tv_usec) /1000.0f);
+	
 	gettimeofday(&tv_s, NULL);
 	
 	ncopy_patch_4x4(B, K, N, N, pInput, numThreads);
@@ -348,116 +351,175 @@ int tinyMatrixMul(const float *A, const float *B, float *C, uint32_t M, uint32_t
 	gettimeofday(&tv_s, NULL);
 	
 	float ncopyTime = .0f;
+	float tcopyTime = .0f;
 	float computeTime = .0f;
-	float computeTimeOne = .0f;
-	float computeTimeOneMax = .0f;
-	float computeTimeOneMin = 111111.0f;
 
-	#pragma omp parallel for num_threads(numThreads) firstprivate(inputBufferIdx)
+	//#pragma omp parallel for num_threads(numThreads) firstprivate(inputBufferIdx)
 	for (i = 0; i < MDiv4; i++)
 	{
+
+		struct timeval beg, end;
+
 		pOutCur = C + i*N*4;
-		#ifdef _OPENMP
+
+		#if 0//def _OPENMP
 		inputBufferIdx = omp_get_thread_num();
 		#endif
+
 		gettimeofday(&beg, NULL);
 		
 		ncopy_4_k(A + i*4*K, pWeight, K, K, numThreads, pSparseFlag[inputBufferIdx]);
 		
 		gettimeofday(&end, NULL);
 		ncopyTime += (end.tv_sec * 1000000 - beg.tv_sec * 1000000 + end.tv_usec - beg.tv_usec) /1000.0f;
-		
-		gettimeofday(&beg, NULL);
 
 		for (j = 0; j < NDiv4; j++)
 		{
-			tinySgemm4xkx4(pWeight, &pInput[j*K*4], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
+			gettimeofday(&beg, NULL);
+
+			//tcopy_k_4(B + j*4, pInput[inputBufferIdx], K, N, numThreads);
+
+			gettimeofday(&end, NULL);
+			tcopyTime += (end.tv_sec * 1000000 - beg.tv_sec * 1000000 + end.tv_usec - beg.tv_usec) /1000.0f;
+
+			gettimeofday(&beg, NULL);
+			
+			tinySgemm4xkx4(pWeight, &pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
+			
+			gettimeofday(&end, NULL);
+			computeTime += (end.tv_sec * 1000000 - beg.tv_sec * 1000000 + end.tv_usec - beg.tv_usec) /1000.0f;
 
 			pOutCur += 4;
 		}
 
 		if (NHas2)
 		{
-			tinySgemm4xkx2(pWeight, &pInput[NDiv4*K*4], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
+			gettimeofday(&beg, NULL);
+
+			//tcopy_k_2(B + NDiv4*4, pInput[inputBufferIdx], K, N, numThreads);
+
+			gettimeofday(&end, NULL);
+			tcopyTime +=(end.tv_sec * 1000000 - beg.tv_sec * 1000000 + end.tv_usec - beg.tv_usec) /1000.0f;
+
+			gettimeofday(&beg, NULL);
+
+			tinySgemm4xkx2(pWeight, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
+
+			gettimeofday(&end, NULL);
+			computeTime += (end.tv_sec * 1000000 - beg.tv_sec * 1000000 + end.tv_usec - beg.tv_usec) /1000.0f;
 
 			pOutCur += 2;
 		}
 
 		if (NHas1)
-			tinySgemm4xkx1(pWeight, &pInput[NDiv4*K*4 + NHas2*K*2], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
+		{
+			gettimeofday(&beg, NULL);
 
-		gettimeofday(&end, NULL);
-		computeTimeOne = (end.tv_sec * 1000000 - beg.tv_sec * 1000000 + end.tv_usec - beg.tv_usec) /1000.0f;
-		computeTime += computeTimeOne;
+			//tcopy_k_1(B + N - 1, pInput[inputBufferIdx], K, N, numThreads);
 
-		computeTimeOneMin = (computeTimeOneMin > computeTimeOne)?computeTimeOne:computeTimeOneMin;
-		computeTimeOneMax = (computeTimeOneMax < computeTimeOne)?computeTimeOne:computeTimeOneMax;
+			gettimeofday(&end, NULL);
+			tcopyTime += (end.tv_sec * 1000000 - beg.tv_sec * 1000000 + end.tv_usec - beg.tv_usec) /1000.0f;
+
+			gettimeofday(&beg, NULL);
+
+			tinySgemm4xkx1(pWeight, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
+
+			gettimeofday(&end, NULL);
+			computeTime += (end.tv_sec * 1000000 - beg.tv_sec * 1000000 + end.tv_usec - beg.tv_usec) /1000.0f;
+		}
 	}
 	
 	gettimeofday(&tv_e, NULL);
-	printf("time1: %.1f [ ncopyTime: %f computeTime: %f ] [min:%f max:%f]\n", 
+	printf("time2: %.1f [tcopyTime: %f ncopyTime: %f computeTime: %f]\n", 
 		   (tv_e.tv_sec * 1000000 - tv_s.tv_sec * 1000000 + tv_e.tv_usec - tv_s.tv_usec) /1000.0f,
-		   ncopyTime, computeTime, computeTimeOneMin, computeTimeOneMax);
+		   tcopyTime, ncopyTime, computeTime);
+	
+	gettimeofday(&tv_s, NULL);
 
 	if (MHas2)
 	{
 		float *pOutCur = C + MDiv4*N*4;
-
-		gettimeofday(&beg, NULL);
-
 		ncopy_2_k(A + MDiv4*4*K, pWeight, K, K, numThreads);
-		
-		gettimeofday(&end, NULL);
-		ncopyTime = (end.tv_sec * 1000000 - beg.tv_sec * 1000000 + end.tv_usec - beg.tv_usec) /1000.0f;
-		
-		//#pragma omp parallel for num_threads(numThreads)
+
+		/* 4x2 */
+		//#pragma omp parallel for num_threads(numThreads) firstprivate(inputBufferIdx)
 		for (j = 0; j < NDiv4; j++)
 		{
-			tinySgemm2xkx4(pWeight, &pInput[j*K*4], pOutCur, K, N, NULL);
+			#if 0//def _OPENMP
+			inputBufferIdx = omp_get_thread_num();
+			#endif
+
+			tcopy_k_4(B + j*4, pInput[inputBufferIdx], K, N, numThreads);
+
+			tinySgemm2xkx4(pWeight, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
+
 			pOutCur += 4;
 		}
 
 		if (NHas2)
 		{
-			tinySgemm2xkx2(pWeight, &pInput[NDiv4*K*4], pOutCur, K, N, NULL);
+			/* 2x2 */
+			tcopy_k_2(B + NDiv4*4, pInput[inputBufferIdx], K, N, numThreads);
+
+			tinySgemm2xkx2(pWeight, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
+
 			pOutCur += 2;
 		}
 
 		if (NHas1)
-			tinySgemm2xkx1(pWeight, &pInput[NDiv4*K*4 + NHas2*K*2], pOutCur, K, N, NULL);
+		{
+			/* 1x2 */
+			tcopy_k_1(B + N - 1, pInput[inputBufferIdx], K, N, numThreads);
 
-		gettimeofday(&tv_e, NULL);
-		printf("time2: %.1f [ncopyTime: %f]\n", (tv_e.tv_sec * 1000000 - tv_s.tv_sec * 1000000 + tv_e.tv_usec - tv_s.tv_usec) /1000.0f,
-			   ncopyTime);
+			tinySgemm2xkx1(pWeight, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
+		}
 	}
+
+	gettimeofday(&tv_e, NULL);
+	printf("time3: %.1f\n", (tv_e.tv_sec * 1000000 - tv_s.tv_sec * 1000000 + tv_e.tv_usec - tv_s.tv_usec) /1000.0f);
+	
+	gettimeofday(&tv_s, NULL);
 
 	if (MHas1)
 	{
 		float *pOutCur = C + (M-1)*N;
 		const float *pWeightCur = A + (M - 1)*K;
-		
-		gettimeofday(&tv_s, NULL);
 
-		//#pragma omp parallel for num_threads(numThreads)
+		//#pragma omp parallel for num_threads(numThreads) firstprivate(inputBufferIdx)
 		for (j = 0; j < NDiv4; j++)
 		{
-			tinySgemm1xkx4(pWeightCur, &pInput[j*K*4], pOutCur, K, N, NULL);
+			#if 0//def _OPENMP
+			inputBufferIdx = omp_get_thread_num();
+			#endif
+
+			tcopy_k_4(B + j*4, pInput[inputBufferIdx], K, N, numThreads);
+
+			tinySgemm1xkx4(pWeightCur, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
+
 			pOutCur += 4;
 		}
 
 		if (NHas2)
 		{
-			tinySgemm1xkx2(pWeightCur, &pInput[NDiv4*K*4], pOutCur, K, N, NULL);
+			tcopy_k_2(B + NDiv4*4, pInput[inputBufferIdx], K, N, numThreads);
+
+			tinySgemm1xkx2(pWeightCur, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
+
 			pOutCur += 2;
 		}
 
 		if (NHas1)
-			tinySgemm1xkx1(pWeightCur, &pInput[NDiv4*K*4 + NHas2*K*2], pOutCur, K, N, NULL);
-		
-		gettimeofday(&tv_e, NULL);
-		printf("time3: %.1f\n", (tv_e.tv_sec * 1000000 - tv_s.tv_sec * 1000000 + tv_e.tv_usec - tv_s.tv_usec) /1000.0f);
+		{
+			tcopy_k_1(B + N - 1, pInput[inputBufferIdx], K, N, numThreads);
+
+			tinySgemm1xkx1(pWeightCur, pInput[inputBufferIdx], pOutCur, K, N, pSparseFlag[inputBufferIdx]);
+		}
 	}
 
 	tinyFree(pWeight, mallocAlignSize);
+
+	gettimeofday(&tv_e, NULL);
+	printf("time4: %.1f\n", (tv_e.tv_sec * 1000000 - tv_s.tv_sec * 1000000 + tv_e.tv_usec - tv_s.tv_usec) /1000.0f);
+	
 	return ret;
 }

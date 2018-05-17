@@ -46,13 +46,13 @@ _tinySgemm1xkx1:
 tinySgemm1xkx1:
 #endif
 
-	prfm PLDL1KEEP, [A, #64]
+	prfm PLDL1KEEP, [A, #16]
 	lsr KDIV4, K, #2
-	prfm PLDL1KEEP, [B, #64]
-	and KHAS2, K, #2
+	prfm PLDL1KEEP, [B, #16]
 	eor VSRC_16B_C0, VSRC_16B_C0, VSRC_16B_C0
-	and KHAS1, K, #1
+	and KHAS2, K, #2
 	eor VSRC_8B_C1, VSRC_8B_C1, VSRC_8B_C1
+	and KHAS1, K, #1
 
 __LOOP_4_BEG:
 	cbz KDIV4, __2_BEG

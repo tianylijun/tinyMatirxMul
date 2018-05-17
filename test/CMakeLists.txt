@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.5)
 set(LIB_INSTALL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build-android/arm64-v8a/install")
 message(LIB_INSTALL_DIR: ${LIB_INSTALL_DIR})
 
+set(CMAKE_BUILD_TYPE Release)
+
 option(ENABLE_OPENMP "openmp support" ON)
 
 if(ENABLE_OPENMP)
