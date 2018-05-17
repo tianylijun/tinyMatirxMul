@@ -24,6 +24,11 @@
 #define VSRC_2S_A2     V2.2S
 #define VSRC_2S_A3     V3.2S
 
+#define VSRC_2S_A0_L0  {V0.S}[0]
+
+#define VSRC_2S_A0_0   V0.S[0]
+#define VSRC_2S_A0_1   V0.S[1]
+
 #define VSRC_4S_B0     V4.4S
 #define VSRC_4S_B1     V5.4S
 #define VSRC_4S_B2     V6.4S
@@ -59,34 +64,28 @@
 #define VSRC_8B_C2      V18.8B
 #define VSRC_8B_C3      V19.8B
 
-/* void fmul_4xkx2_asm(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag) */
+/* void tinySgemm1xkx2(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag) */
 
-.macro fmla_col_4x4x2 sum_q, col0
+.macro fmla_col_1x4x2 sum_q, col0
      fmla    \sum_q, VSRC_2S_B0, \col0[0]
      fmla    \sum_q, VSRC_2S_B1, \col0[1]
      fmla    \sum_q, VSRC_2S_B2, \col0[2]
      fmla    \sum_q, VSRC_2S_B3, \col0[3]
 .endm
 
-.macro fmla_col_4x2x2 sum_q0, sum_q1, col0
+.macro fmla_col_1x2x2 sum_q0, col0
      fmla    \sum_q0, VSRC_2S_B0, \col0[0]
      fmla    \sum_q0, VSRC_2S_B1, \col0[1]
-     fmla    \sum_q1, VSRC_2S_B0, \col0[2]
-     fmla    \sum_q1, VSRC_2S_B1, \col0[3]
-.endm
-
-.macro fmla_col_4x1x2 sum_q, col0, idx
-     fmla    \sum_q, VSRC_2S_B0, \col0[\idx]
 .endm
 
 	.text
 	.align 5
 #ifdef __APPLE__
-	.global _fmul_4xkx2_asm
-_fmul_4xkx2_asm:
+	.global _tinySgemm1xkx2
+_tinySgemm1xkx2:
 #else
-	.global fmul_4xkx2_asm
-fmul_4xkx2_asm:
+	.global tinySgemm1xkx2
+tinySgemm1xkx2:
 #endif
 
 	prfm PLDL1KEEP, [A, #64]
@@ -94,57 +93,43 @@ fmul_4xkx2_asm:
 	eor VSRC_8B_C0, VSRC_8B_C0, VSRC_8B_C0
 	lsr KDIV4, K, #2
 	prfm PLDL1KEEP, [B, #64]
-	eor VSRC_8B_C1, VSRC_8B_C1, VSRC_8B_C1
 	and KHAS2, K, #2
-	eor VSRC_8B_C2, VSRC_8B_C2, VSRC_8B_C2
+	eor VSRC_8B_C1, VSRC_8B_C1, VSRC_8B_C1
 	and KHAS1, K, #1
-	eor VSRC_8B_C3, VSRC_8B_C3, VSRC_8B_C3
 
 __LOOP_4_BEG:
 	cbz KDIV4, __2_BEG
 
-	ld1  {VSRC_4S_A0, VSRC_4S_A1, VSRC_4S_A2, VSRC_4S_A3}, [A], #64
+	ld1  {VSRC_4S_A0}, [A], #16
+	subs KDIV4, KDIV4, #1
     ld1  {VSRC_2S_B0, VSRC_2S_B1, VSRC_2S_B2, VSRC_2S_B3}, [B], #32
 
-    prfm PLDL1KEEP, [A, #64]
-	fmla_col_4x4x2 VSRC_2S_C0, VSRC_S_A0
-	fmla_col_4x4x2 VSRC_2S_C1, VSRC_S_A1
-
+    prfm PLDL1KEEP, [A, #16]
+	fmla_col_1x4x2 VSRC_2S_C0, VSRC_S_A0
 	prfm PLDL1KEEP, [B, #32]
-	fmla_col_4x4x2 VSRC_2S_C2, VSRC_S_A2
-	subs KDIV4, KDIV4, #1
-	fmla_col_4x4x2 VSRC_2S_C3, VSRC_S_A3
 
 	b __LOOP_4_BEG
 
 __2_BEG:
 	cbz KHAS2, __1_BEG
 
-	ld1  {VSRC_4S_A0, VSRC_4S_A1}, [A], #32
+	ld1  {VSRC_2S_A0}, [A], #8
     ld1  {VSRC_2S_B0, VSRC_2S_B1}, [B], #16
 
-    prfm PLDL1KEEP, [A, #32]
-	fmla_col_4x2x2 VSRC_2S_C0, VSRC_2S_C1, VSRC_S_A0
-
-	prfm PLDL1KEEP, [B, #16]
-	fmla_col_4x2x2 VSRC_2S_C2, VSRC_2S_C3, VSRC_S_A1
+    prfm PLDL1KEEP, [A, #8]
+	fmla_col_1x2x2 VSRC_2S_C0, VSRC_S_A0
+	prfm PLDL1KEEP, [B, #8]
 
 __1_BEG:
 	cbz KHAS1, __END
 
-	ld1  {VSRC_4S_A0}, [A], #16
-    ld1  {VSRC_2S_B0}, [B], #8
+	ld1  VSRC_2S_A0_L0, [A]
+    ld1  {VSRC_2S_B0}, [B]
 
-    fmla_col_4x1x2 VSRC_2S_C0, VSRC_S_A0, 0
-    fmla_col_4x1x2 VSRC_2S_C1, VSRC_S_A0, 1
-    fmla_col_4x1x2 VSRC_2S_C2, VSRC_S_A0, 2
-    fmla_col_4x1x2 VSRC_2S_C3, VSRC_S_A0, 3
+    fmla VSRC_2S_C0, VSRC_2S_B0, VSRC_2S_A0_0
 
 __END:
-	st1 {VSRC_2S_C0}, [C], CSTRIDEX
-	st1 {VSRC_2S_C1}, [C], CSTRIDEX
-	st1 {VSRC_2S_C2}, [C], CSTRIDEX
-	st1 {VSRC_2S_C3}, [C]
+	st1 {VSRC_2S_C0}, [C]
 
 	ret
 #endif

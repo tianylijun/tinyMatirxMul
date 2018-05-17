@@ -223,51 +223,6 @@ void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t N, uint32_t stride,
 	}
 }
 
-static void inline tinySgemm4xkx4(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
-{
-	fmul_4xkx4_asm(A, B, C, K, CStride, pSparseFlag);
-}
-
-static void inline tinySgemm4xkx2(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
-{
-	fmul_4xkx2_asm(A, B, C, K, CStride, pSparseFlag);
-}
-
-static void inline tinySgemm4xkx1(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
-{
-	fmul_4xkx1_asm(A, B, C, K, CStride, pSparseFlag);
-}
-
-static void inline tinySgemm2xkx4(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
-{
-	fmul_2xkx4_asm(A, B, C, K, CStride, pSparseFlag);
-}
-
-static void inline tinySgemm2xkx2(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
-{
-	fmul_2xkx2_asm(A, B, C, K, CStride, pSparseFlag);
-}
-
-static void inline tinySgemm2xkx1(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
-{
-	fmul_2xkx1_asm(A, B, C, K, CStride, pSparseFlag);
-}
-
-static void inline tinySgemm1xkx4(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
-{
-
-}
-
-static void inline tinySgemm1xkx2(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
-{
-
-}
-
-static void inline tinySgemm1xkx1(const float *A, const float *B, float *C, uint32_t K, uint32_t CStride, uint32_t *pSparseFlag)
-{
-
-}
-
 static int ncopy_4_k(const float *pSrc, float *pDst, uint32_t K, uint32_t stride, uint32_t numThreads, uint32_t *pSparseFlag)
 {
 	int ret = 0;
