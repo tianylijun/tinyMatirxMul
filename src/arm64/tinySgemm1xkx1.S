@@ -14,6 +14,7 @@
 #define KHAS1          w8
 
 /* RSV V8~V15 */
+#define VSRC_8B_A0     V0.8B
 #define VSRC_4S_A0     V0.4S
 #define VSRC_S_A0      s0
 #define VSRC_S_A0_L0   {v0.s}[0]
@@ -49,9 +50,8 @@ tinySgemm1xkx1:
 	prfm PLDL1KEEP, [A, #16]
 	lsr KDIV4, K, #2
 	prfm PLDL1KEEP, [B, #16]
-	eor VSRC_16B_C0, VSRC_16B_C0, VSRC_16B_C0
 	and KHAS2, K, #2
-	eor VSRC_8B_C1, VSRC_8B_C1, VSRC_8B_C1
+	eor VSRC_16B_C0, VSRC_16B_C0, VSRC_16B_C0
 	and KHAS1, K, #1
 
 __LOOP_4_BEG:
@@ -68,9 +68,9 @@ __LOOP_4_BEG:
 	b __LOOP_4_BEG
 
 __2_BEG:
+	eor VSRC_8B_C1, VSRC_8B_C1, VSRC_8B_C1
 	cbz KHAS2, __1_BEG
 
-	/* transport first */
 	ld1  {VSRC_2S_A0}, [A], #8
     ld1  {VSRC_2S_B0}, [B], #8
 
@@ -79,6 +79,7 @@ __2_BEG:
 	faddp VSRC_2S_C1, VSRC_2S_C1, VSRC_2S_C1
 
 __1_BEG:
+	eor VSRC_8B_A0, VSRC_8B_A0, VSRC_8B_A0
 	cbz KHAS1, __END
 
 	ld1  VSRC_S_A0_L0, [A]

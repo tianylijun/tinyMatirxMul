@@ -126,7 +126,7 @@ __1_BEG:
     ld1  {VSRC_4S_B0}, [B]
 
     fmla VSRC_4S_C0, VSRC_4S_B0, VSRC_2S_A0_0
-    fmla VSRC_4S_C1, VSRC_4S_B1, VSRC_2S_A0_1
+    fmla VSRC_4S_C1, VSRC_4S_B0, VSRC_2S_A0_1
 
 __END:
 	st1 {VSRC_4S_C0}, [C], CSTRIDEX
