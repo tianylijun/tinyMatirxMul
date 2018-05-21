@@ -23,6 +23,7 @@ typedef struct __tinyMatrixCtx
 	uint32_t M;
 	uint32_t N;
 	uint32_t K;
+	uint32_t numThreads;
 }tinyMatrixCtx_S;
 
 #ifdef __cplusplus

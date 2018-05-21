@@ -59,6 +59,8 @@
 #define VSRC_8B_C2      V18.8B
 #define VSRC_8B_C3      V19.8B
 
+#define PRE_LOAD_SIZE (128)
+
 .macro fmla_col_4x4x4 sum_q, col0
      fmla    \sum_q, VSRC_4S_B0, \col0[0]
      fmla    \sum_q, VSRC_4S_B1, \col0[1]
@@ -89,11 +91,11 @@ _tinySgemm4xkx4:
 tinySgemm4xkx4:
 #endif
 
-	prfm PLDL1KEEP, [A, #32]
+	prfm PLDL1KEEP, [A, #PRE_LOAD_SIZE]
 	sxtw CSTRIDEX, CSTRIDE
 	eor VSRC_16B_C0, VSRC_16B_C0, VSRC_16B_C0
 	lsr KDIV4, K, #2
-	prfm PLDL1KEEP, [B, #64]
+	prfm PLDL1KEEP, [B, #PRE_LOAD_SIZE]
 	eor VSRC_16B_C1, VSRC_16B_C1, VSRC_16B_C1
 	and KHAS2, K, #2
 	eor VSRC_16B_C2, VSRC_16B_C2, VSRC_16B_C2
@@ -103,20 +105,50 @@ tinySgemm4xkx4:
 __LOOP_4_BEG:
 	cbz KDIV4, __2_BEG
 
+#if 1
 	ld1  {VSRC_4S_A0, VSRC_4S_A1}, [A], #32
 	subs KDIV4, KDIV4, #1
-    ld1  {VSRC_4S_B0, VSRC_4S_B1, VSRC_4S_B2, VSRC_4S_B3}, [B], #64
+    ld1  {VSRC_4S_B0, VSRC_4S_B1}, [B], #32
 
-    prfm PLDL1KEEP, [A, #64]
+    fmla    VSRC_4S_C0, VSRC_4S_B0, VSRC_S_A0[0]
+    ld1  {VSRC_4S_B2, VSRC_4S_B3}, [B], #32
+    fmla    VSRC_4S_C0, VSRC_4S_B1, VSRC_S_A0[1]
+    fmla    VSRC_4S_C1, VSRC_4S_B0, VSRC_S_A1[0]
+    fmla    VSRC_4S_C1, VSRC_4S_B1, VSRC_S_A1[1]
+
+ 	ld1  {VSRC_4S_A2, VSRC_4S_A3}, [A], #32
+    fmla    VSRC_4S_C0, VSRC_4S_B2, VSRC_S_A0[2]
+    prfm PLDL1KEEP, [A, #PRE_LOAD_SIZE]
+    fmla    VSRC_4S_C0, VSRC_4S_B3, VSRC_S_A0[3]
+    fmla    VSRC_4S_C1, VSRC_4S_B2, VSRC_S_A1[2]
+    fmla    VSRC_4S_C1, VSRC_4S_B3, VSRC_S_A1[3]
+
+    prfm PLDL1KEEP, [B, #PRE_LOAD_SIZE]
+    fmla    VSRC_4S_C2, VSRC_4S_B0, VSRC_S_A2[0]
+    fmla    VSRC_4S_C2, VSRC_4S_B1, VSRC_S_A2[1]
+    fmla    VSRC_4S_C2, VSRC_4S_B2, VSRC_S_A2[2]
+    fmla    VSRC_4S_C2, VSRC_4S_B3, VSRC_S_A2[3]
+
+    fmla    VSRC_4S_C3, VSRC_4S_B0, VSRC_S_A3[0]
+    fmla    VSRC_4S_C3, VSRC_4S_B1, VSRC_S_A3[1]
+    fmla    VSRC_4S_C3, VSRC_4S_B2, VSRC_S_A3[2]
+    fmla    VSRC_4S_C3, VSRC_4S_B3, VSRC_S_A3[3]
+#else
+	ld1  {VSRC_4S_A0, VSRC_4S_A1, VSRC_4S_A2, VSRC_4S_A3}, [A], #64
+	subs KDIV4, KDIV4, #1
+    ld1  {VSRC_4S_B0, VSRC_4S_B1, VSRC_4S_B2, VSRC_4S_B3}, [B], #64
+	
+	prfm PLDL1KEEP, [B, #PRE_LOAD_SIZE]
+
 	fmla_col_4x4x4 VSRC_4S_C0, VSRC_S_A0
-	ld1  {VSRC_4S_A2, VSRC_4S_A3}, [A], #32
+	//ld1  {VSRC_4S_A2, VSRC_4S_A3}, [A], #32
 	fmla_col_4x4x4 VSRC_4S_C1, VSRC_S_A1
 
-	prfm PLDL1KEEP, [B, #64]
+    prfm PLDL1KEEP, [A, #PRE_LOAD_SIZE]	
 	
 	fmla_col_4x4x4 VSRC_4S_C2, VSRC_S_A2
 	fmla_col_4x4x4 VSRC_4S_C3, VSRC_S_A3
-
+#endif
 	b __LOOP_4_BEG
 
 __2_BEG:

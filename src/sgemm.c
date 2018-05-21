@@ -28,6 +28,8 @@ const int mc = 1024;
 const int kc = 256;
 const int nc = 256;
 
+#define min(a,b) (((a) > (b))?(b):(a))
+
 void sgemm_4x1( int L, float *a, int lda, float *b, int ldb, float *c, int ldc );
 void sgemm_4x2( int L, float *a, int lda, float *b, int ldb, float *c, int ldc );
 void sgemm_4x3( int L, float *a, int lda, float *b, int ldb, float *c, int ldc );

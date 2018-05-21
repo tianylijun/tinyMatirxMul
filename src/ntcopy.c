@@ -37,18 +37,19 @@ void tcopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t M, uint32_t stride,
 
 	MDiv4 = M>>2; MHas2 = (M>>1)&1; MHas1 = M&1;
 	KDiv4 = K>>2; KHas2 = (K>>1)&1; KHas1 = K&1;
-#if 1
+
+#if 0
 	printf("M: %d, k: %d stride: %d\n", M, K, stride);
 	printf("KDiv4: %d, KHas2: %d KHas1: %d\n", KDiv4, KHas2, KHas1);
 	printf("MDiv4: %d, MHas2: %d KMas1: %d\n", MDiv4, MHas2, MHas1);
 #endif
 
-	#pragma omp parallel for num_threads(numThreads) schedule(static)
 	for(j = 0; j < MDiv4; j++)
 	{
 		pSrcStart = (uint32_t *)pSrc + j*4*stride;
 		pDstStart = (uint32_t *)pDst + j*4*K;
 
+		#pragma omp parallel for num_threads(numThreads) schedule(static)
 		for( i = 0; i < KDiv4; i++)
 		{
 			/* Do 4x4 patch copy */
@@ -135,7 +136,6 @@ void tcopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t M, uint32_t stride,
 
 		if(KHas1)
 		{
-			printf("---%.3f %.3f- i: %d---\n", *(pSrcStart), *(pSrcStart + stride), i);
 			/* Do 1x2 patch copy */
 			*(pDstStart+0) = *(pSrcStart);
 			*(pDstStart+1) = *(pSrcStart + stride);
@@ -169,12 +169,12 @@ void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t N, uint32_t stride,
 	printf("NDiv4: %d, NHas2: %d NNas1: %d\n\n", NDiv4, NHas2, NHas1);
 #endif
 
-	#pragma omp parallel for num_threads(numThreads) schedule(static)
 	for(j = 0; j < KDiv4; j++)
 	{
 		pSrcStart = (uint32_t *)pSrc + j*4*stride;
 		pDstStart = (uint32_t *)pDst + j*4*4;
 
+		#pragma omp parallel for num_threads(numThreads) schedule(static)
 		for( i = 0; i < NDiv4; i++)
 		{
 			/* Do 4x4 patch copy */
@@ -229,6 +229,7 @@ void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t N, uint32_t stride,
 		pSrcStart = (uint32_t *)pSrc + KDiv4*4*stride;
 		pDstStart = (uint32_t *)pDst + KDiv4*4*4;
 
+		#pragma omp parallel for num_threads(numThreads) schedule(static)
 		for( i = 0; i < NDiv4; i++)
 		{
 			/* Do 4x2 patch copy */
@@ -272,8 +273,9 @@ void ncopy_patch_4x4(const float *pSrc, uint32_t K, uint32_t N, uint32_t stride,
 		pSrcStart = (uint32_t *)pSrc + (K-1)*stride;
 		pDstStart = (uint32_t *)pDst + 4*4*KDiv4;
 
-		if (KHas2) pDstStart += 2*4; 
+		if (KHas2) pDstStart += 2*4;
 
+		#pragma omp parallel for num_threads(numThreads) schedule(static)
 		for( i = 0; i < NDiv4; i++)
 		{
 			/* Do 4x1 patch copy */

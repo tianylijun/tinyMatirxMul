@@ -6,7 +6,8 @@
 #include <sys/time.h>
 #include "asmNeonApi.h"
 
-#define TIME_PROFILE_ENABLE
+//#define TIME_PROFILE_ENABLE
+//#define NTCOPY_PRT_ENABLE
 //#define USE_MALLOC
 
 static inline void* tinyMalloc(uint32_t size)
@@ -27,14 +28,22 @@ static inline int32_t tinyFree(void * pAddr, uint32_t size)
 #endif
 }
 
-static int32_t tinySgemmUnit(const tinyMatrixCtx_S *pCtx, const float *A, const float *B, float *C, uint32_t M, uint32_t N, uint32_t K, uint32_t numThread)
+static int32_t tinySgemmUnit(const tinyMatrixCtx_S *pCtx, const float *A, const float *B, float *C, uint32_t M, uint32_t N, uint32_t K, uint32_t threadId)
 {
 	int32_t ret = 0;
 	uint32_t i, j, MDiv4, MHas2, MHas1, NDiv4, NHas2, NHas1, KDiv4, KHas2, KHas1, stride;
 	const float *pWeight;
 	float *pBCopy, *pOutCur;
+	uint32_t curThreadId = 0;
+#ifdef _OPENMP
+	curThreadId = omp_get_thread_num();
+#endif
 #ifdef TIME_PROFILE_ENABLE
 	struct timeval tv_s, tv_e;
+#endif
+
+#ifdef TIME_PROFILE_ENABLE
+	gettimeofday(&tv_s, NULL);
 #endif
 
 	stride = pCtx->N;
@@ -42,12 +51,12 @@ static int32_t tinySgemmUnit(const tinyMatrixCtx_S *pCtx, const float *A, const 
 	NDiv4 = N>>2; NHas2 = (N>>1)&1; NHas1 = N&1;
 	KDiv4 = K>>2; KHas2 = (K>>1)&1; KHas1 = K&1;
 
-#if 1
-	printf("[M N K Threads Stride] [%d %d %d %d %d]\n"
+#if 0
+	printf("[%d:%d][M N K Stride] [%d %d %d %d]\n"
 		   "MDiv4: %03d, MHas2: %d MHas1: %d\n"
 		   "NDiv4: %03d, NHas2: %d NNas1: %d\n"
 		   "KDiv4: %03d, KHas2: %d KHas1: %d\n",
-			M, N, K, numThread, stride,
+			curThreadId, threadId, M, N, K, stride,
 			MDiv4, MHas2, MHas1, 
 			NDiv4, NHas2, NHas1, 
 			KDiv4, KHas2, KHas1);
@@ -60,21 +69,17 @@ static int32_t tinySgemmUnit(const tinyMatrixCtx_S *pCtx, const float *A, const 
 		return -1;
 	}
 
-#ifdef TIME_PROFILE_ENABLE
-	gettimeofday(&tv_s, NULL);
-#endif
-
-	ncopy_patch_4x4(B, K, N, stride, pBCopy, 1);
+	ncopy_patch_4x4(B, K, N, stride, pBCopy, 1/*pCtx->numThreads*/);
 
 #ifdef TIME_PROFILE_ENABLE
 	gettimeofday(&tv_e, NULL);
-	printf("ncopyTime: %.1f\n", (tv_e.tv_sec * 1000000 - tv_s.tv_sec * 1000000 + tv_e.tv_usec - tv_s.tv_usec) /1000.0f);
+	printf("[%d:%d]ncopyTime: %.1f\n", curThreadId, threadId, (tv_e.tv_sec * 1000000 - tv_s.tv_sec * 1000000 + tv_e.tv_usec - tv_s.tv_usec) /1000.0f);
 #endif
 
-	if (0)
+#ifdef NTCOPY_PRT_ENABLE
 	{
 
-		int i, j;
+		uint32_t i, j;
 		printf("==================ncopyB================\n");
 		for (i = 0; i < K; i++) {
 			for (j = 0; j < N; j++) {
@@ -83,31 +88,23 @@ static int32_t tinySgemmUnit(const tinyMatrixCtx_S *pCtx, const float *A, const 
 			printf("\n");
 		}
 	}
+#endif
 
 #ifdef TIME_PROFILE_ENABLE
 	gettimeofday(&tv_s, NULL);
 #endif
-
+	//#pragma omp parallel for num_threads(pCtx->numThreads)
 	for (i = 0; i < MDiv4; i++)
 	{
 		pOutCur = C + i*stride*4;
 		pWeight = A + i*4*K;
+
+		//#pragma omp parallel for num_threads(pCtx->numThreads)
 		for (j = 0; j < NDiv4; j++)
-		{
-			tinySgemm4xkx4(pWeight, &pBCopy[j*K*4], pOutCur, K, stride<<2, NULL);
+			tinySgemm4xkx4(pWeight, &pBCopy[j*K*4], &pOutCur[j*4], K, stride<<2, NULL);
 
-			pOutCur += 4;
-		}
-
-		if (NHas2)
-		{
-			tinySgemm4xkx2(pWeight, &pBCopy[NDiv4*K*4], pOutCur, K, stride<<2, NULL);
-
-			pOutCur += 2;
-		}
-
-		if (NHas1)
-			tinySgemm4xkx1(pWeight, &pBCopy[NDiv4*K*4 + NHas2*K*2], pOutCur, K, stride<<2, NULL);
+		if (NHas2) tinySgemm4xkx2(pWeight, &pBCopy[NDiv4*K*4], pOutCur + NDiv4*4, K, stride<<2, NULL);
+		if (NHas1) tinySgemm4xkx1(pWeight, &pBCopy[NDiv4*K*4 + NHas2*K*2], pOutCur + NDiv4*4 + NHas2*2, K, stride<<2, NULL);
 	}
 
 	if (MHas2)
@@ -116,19 +113,10 @@ static int32_t tinySgemmUnit(const tinyMatrixCtx_S *pCtx, const float *A, const 
 		pWeight = A + MDiv4*4*K;
 
 		for (j = 0; j < NDiv4; j++)
-		{
-			tinySgemm2xkx4(pWeight, &pBCopy[j*K*4], pOutCur, K, stride<<2, NULL);
-			pOutCur += 4;
-		}
+			tinySgemm2xkx4(pWeight, &pBCopy[j*K*4], &pOutCur[j*4], K, stride<<2, NULL);
 
-		if (NHas2)
-		{
-			tinySgemm2xkx2(pWeight, &pBCopy[NDiv4*K*4], pOutCur, K, stride<<2, NULL);
-			pOutCur += 2;
-		}
-
-		if (NHas1)
-			tinySgemm2xkx1(pWeight, &pBCopy[NDiv4*K*4 + NHas2*K*2], pOutCur, K, stride<<2, NULL);
+		if (NHas2) tinySgemm2xkx2(pWeight, &pBCopy[NDiv4*K*4], pOutCur + NDiv4*4, K, stride<<2, NULL);
+		if (NHas1) tinySgemm2xkx1(pWeight, &pBCopy[NDiv4*K*4 + NHas2*K*2], pOutCur + NDiv4*4 + NHas2*2, K, stride<<2, NULL);
 	}
 
 	if (MHas1)
@@ -137,27 +125,19 @@ static int32_t tinySgemmUnit(const tinyMatrixCtx_S *pCtx, const float *A, const 
 		const float *pWeightCur = A + (M - 1)*K;
 
 		for (j = 0; j < NDiv4; j++)
-		{
-			tinySgemm1xkx4(pWeightCur, &pBCopy[j*K*4], pOutCur, K, stride<<2, NULL);
-			pOutCur += 4;
-		}
+			tinySgemm1xkx4(pWeightCur, &pBCopy[j*K*4], &pOutCur[j*4], K, stride<<2, NULL);
 
-		if (NHas2)
-		{
-			tinySgemm1xkx2(pWeightCur, &pBCopy[NDiv4*K*4], pOutCur, K, stride<<2, NULL);
-			pOutCur += 2;
-		}
-
-		if (NHas1)
-			tinySgemm1xkx1(pWeightCur, &pBCopy[NDiv4*K*4 + NHas2*K*2], pOutCur, K, stride<<2, NULL);
+		if (NHas2) tinySgemm1xkx2(pWeightCur, &pBCopy[NDiv4*K*4], pOutCur + NDiv4*4, K, stride<<2, NULL);
+		if (NHas1) tinySgemm1xkx1(pWeightCur, &pBCopy[NDiv4*K*4 + NHas2*K*2], pOutCur + NDiv4*4 + NHas2*2, K, stride<<2, NULL);
 	}
+
+	tinyFree(pBCopy, K*N*sizeof(float));
 
 #ifdef TIME_PROFILE_ENABLE
 	gettimeofday(&tv_e, NULL);
-	printf("ComputeTime: %.1f\n", (tv_e.tv_sec * 1000000 - tv_s.tv_sec * 1000000 + tv_e.tv_usec - tv_s.tv_usec) /1000.0f);
+	printf("[%d:%d]ComputeTime: %.1f\n", curThreadId, threadId, (tv_e.tv_sec * 1000000 - tv_s.tv_sec * 1000000 + tv_e.tv_usec - tv_s.tv_usec) /1000.0f);
 #endif
 
-	tinyFree(pBCopy, K*N*sizeof(float));
 	return ret;
 }
 
@@ -182,7 +162,7 @@ tinyMatrixCtx_S* tinyMatrixInit(const float *A, uint32_t M, uint32_t N, uint32_t
 		return NULL;
 	}
 
-	pCtx->M = M; pCtx->N = N; pCtx->K = K;
+	pCtx->M = M; pCtx->N = N; pCtx->K = K; pCtx->numThreads = numThreads;
 
 #ifdef TIME_PROFILE_ENABLE
 	gettimeofday(&tv_e, NULL);
@@ -195,9 +175,9 @@ tinyMatrixCtx_S* tinyMatrixInit(const float *A, uint32_t M, uint32_t N, uint32_t
 	printf("TcopyTime: %.1f\n", (tv_e.tv_sec * 1000000 - tv_s.tv_sec * 1000000 + tv_e.tv_usec - tv_s.tv_usec) /1000.0f);
 #endif
 
-	if (0)
+#ifdef NTCOPY_PRT_ENABLE
 	{
-		int i, j;
+		uint32_t i, j;
 		printf("==================tcopyA================\n");
 		for (i = 0; i < M; i++) {
 			for (j = 0; j < K; j++) {
@@ -206,6 +186,7 @@ tinyMatrixCtx_S* tinyMatrixInit(const float *A, uint32_t M, uint32_t N, uint32_t
 			printf("\n");
 		}
 	}
+#endif
 
 	return pCtx;
 }
@@ -227,18 +208,18 @@ int32_t tinyMatrixMul(tinyMatrixCtx_S *pCtx, const float *A, const float *B, flo
 {
     uint32_t tN = N / numThreads;
     tN = tN + (4 - tN % 4) % 4;
-	printf("tN: %d, Threads: %d N: %d\n", tN, numThreads, N);
+	//printf("tN: %d, Threads: %d, N: %d\n", tN, numThreads, N);
 
 	if ( 1 == numThreads || N <= numThreads || N / numThreads < 4)
 		return tinySgemmUnit(pCtx, A, B, C, M, N, K, 0);
 
-	#pragma omp parallel for num_threads(numThreads) schedule(static)
+	#pragma omp parallel for num_threads(numThreads)
 	for (uint32_t i = 0; i < numThreads; ++i)
 	{
 		uint32_t cN = tN;
 		if ((numThreads-1) == i) cN = N - i*tN;
 
-		printf("Thread: %d cN: %d\n", i, cN);
+		//printf("Thread: %d cN: %d\n", i, cN);
 		tinySgemmUnit(pCtx, A, B + i*tN,  C + i*tN, M, cN, K, i);
 	}
 

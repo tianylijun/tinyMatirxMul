@@ -160,6 +160,7 @@ int main(int argc, char* argv[]) {
 
 	printf("==================tinysgemm compare %s================\n\n\n",((1==sameFlag)?"same":"diff"));
 
+	/******************************************************************************************************/
 	float *packA = (float *)malloc((m*k)*sizeof(float));
 	externalPackA(m, k, packA, A, k);
 
@@ -192,6 +193,8 @@ int main(int argc, char* argv[]) {
 	}
 
 	printf("==================block_sgemm4x4 compare %s================\n",((1==sameFlag)?"same":"diff"));
+
+	externalPackA8(m, k, packA, A, k);
 
 	gettimeofday(&tv_s, NULL);
 	

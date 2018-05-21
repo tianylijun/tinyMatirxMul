@@ -21,3 +21,6 @@ link_directories(${LIB_INSTALL_DIR}/libstatic)
 
 add_executable(sgemmtest sgemm-test.cpp)
 target_link_libraries(sgemmtest tinyMatrixMul)
+
+add_executable(ntcopytest ntcopy-test.cpp)
+target_link_libraries(ntcopytest tinyMatrixMul)
